@@ -1,0 +1,72 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.ML;
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+
+namespace QuantumCrossScripting.ML.Model
+{
+    // The model class
+    public class XssDetectionModelInput
+    {
+        public string InputText { get; set; }
+    }
+
+    public class XssDetectionModelOutput
+    {
+        public bool IsMalicious { get; set; }
+    }
+
+    [ApiController]
+    [Route("[controller]")]
+    public class XssDetectionController : ControllerBase
+    {
+        private readonly string _modelPath = "ML/Model/XssDetectionModel.zip";
+        private readonly MLContext _mlContext;
+        private ITransformer _model;
+
+        public XssDetectionController()
+        {
+            _mlContext = new MLContext();
+            InitializeModel();
+        }
+
+        // Load the model from the zipped file
+        private void InitializeModel()
+        {
+            if (!System.IO.File.Exists(_modelPath))
+            {
+                throw new FileNotFoundException("XssDetectionModel.zip not found at path " + _modelPath);
+            }
+
+            // Unzip the model if it's not already extracted
+            string extractedModelPath = Path.Combine(Path.GetDirectoryName(_modelPath), "extracted_model");
+            if (!Directory.Exists(extractedModelPath))
+            {
+                ZipFile.ExtractToDirectory(_modelPath, extractedModelPath);
+            }
+
+            // Load the model
+            string modelFilePath = Path.Combine(extractedModelPath, "XssDetectionModel.zip");
+            _model = _mlContext.Model.Load(modelFilePath, out var modelInputSchema);
+        }
+
+        // Endpoint to detect XSS in the input text
+        [HttpPost("detect")]
+        public IActionResult Detect([FromBody] XssDetectionModelInput input)
+        {
+            if (input == null || string.IsNullOrEmpty(input.InputText))
+            {
+                return BadRequest("Input text is required.");
+            }
+
+            // Use the model to predict whether the input is malicious (XSS)
+            var predictionEngine = _mlContext.Model.CreatePredictionEngine<XssDetectionModelInput, XssDetectionModelOutput>(_model);
+
+            var result = predictionEngine.Predict(input);
+
+            return Ok(new { IsMalicious = result.IsMalicious });
+        }
+    }
+}
