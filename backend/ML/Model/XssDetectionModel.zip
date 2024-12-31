@@ -4,15 +4,17 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace QuantumCrossScripting.ML.Model
 {
-    // The model class
+    // The model input class
     public class XssDetectionModelInput
     {
         public string InputText { get; set; }
     }
 
+    // The model output class
     public class XssDetectionModelOutput
     {
         public bool IsMalicious { get; set; }
@@ -22,18 +24,19 @@ namespace QuantumCrossScripting.ML.Model
     [Route("[controller]")]
     public class XssDetectionController : ControllerBase
     {
-        private readonly string _modelPath = "ML/Model/XssDetectionModel.zip";
+        private readonly string _modelPath = "ML/Model/XssDetectionModel.zip"; // Model path (could be configurable)
         private readonly MLContext _mlContext;
         private ITransformer _model;
+        private PredictionEngine<XssDetectionModelInput, XssDetectionModelOutput> _predictionEngine;
 
         public XssDetectionController()
         {
             _mlContext = new MLContext();
-            InitializeModel();
+            InitializeModel().GetAwaiter().GetResult(); // Initialize the model asynchronously
         }
 
-        // Load the model from the zipped file
-        private void InitializeModel()
+        // Asynchronous method to load and extract the model
+        private async Task InitializeModel()
         {
             if (!System.IO.File.Exists(_modelPath))
             {
@@ -44,29 +47,45 @@ namespace QuantumCrossScripting.ML.Model
             string extractedModelPath = Path.Combine(Path.GetDirectoryName(_modelPath), "extracted_model");
             if (!Directory.Exists(extractedModelPath))
             {
+                Directory.CreateDirectory(extractedModelPath); // Ensure the directory exists
                 ZipFile.ExtractToDirectory(_modelPath, extractedModelPath);
             }
 
-            // Load the model
+            // Load the model (assuming it's in the zip file extracted into extracted_model directory)
             string modelFilePath = Path.Combine(extractedModelPath, "XssDetectionModel.zip");
-            _model = _mlContext.Model.Load(modelFilePath, out var modelInputSchema);
+
+            try
+            {
+                _model = _mlContext.Model.Load(modelFilePath, out var modelInputSchema);
+                _predictionEngine = _mlContext.Model.CreatePredictionEngine<XssDetectionModelInput, XssDetectionModelOutput>(_model);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error loading the model", ex);
+            }
         }
 
         // Endpoint to detect XSS in the input text
         [HttpPost("detect")]
         public IActionResult Detect([FromBody] XssDetectionModelInput input)
         {
+            // Check for valid input
             if (input == null || string.IsNullOrEmpty(input.InputText))
             {
                 return BadRequest("Input text is required.");
             }
 
-            // Use the model to predict whether the input is malicious (XSS)
-            var predictionEngine = _mlContext.Model.CreatePredictionEngine<XssDetectionModelInput, XssDetectionModelOutput>(_model);
+            try
+            {
+                // Use the prediction engine to make a prediction
+                var result = _predictionEngine.Predict(input);
 
-            var result = predictionEngine.Predict(input);
-
-            return Ok(new { IsMalicious = result.IsMalicious });
+                return Ok(new { IsMalicious = result.IsMalicious });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = $"Error during prediction: {ex.Message}" });
+            }
         }
     }
 }
