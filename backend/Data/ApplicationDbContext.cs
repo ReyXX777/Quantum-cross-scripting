@@ -2,6 +2,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 
 namespace QuantumCrossScripting.Data
 {
@@ -38,6 +39,9 @@ namespace QuantumCrossScripting.Data
 
                 entity.Property(u => u.CreatedAt)
                       .HasDefaultValueSql("GETDATE()");
+
+                // Add index for Email (optional) for faster lookups
+                entity.HasIndex(u => u.Email).IsUnique();
             });
 
             // Configurations for ThreatLog entity
