@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.IO;
 
@@ -8,21 +10,23 @@ namespace QuantumCrossScripting.Controllers
     [Route("[controller]")]
     public class LogsController : ControllerBase
     {
-        private readonly string _logFilePath = "logs.txt"; // Example file path for logs
+        private readonly string _logFilePath;
+        private readonly ILogger<LogsController> _logger;
 
-        public LogsController()
+        // Constructor to inject IConfiguration and ILogger
+        public LogsController(IConfiguration configuration, ILogger<LogsController> logger)
         {
-            // This is just an example. You might want to inject a service for logging.
+            _logger = logger;
+            _logFilePath = configuration["Logging:LogFilePath"] ?? "logs.txt"; // Get log file path from configuration or default to logs.txt
         }
 
         [HttpGet]
         public IActionResult GetLogs()
         {
-            // Retrieve logs from a file, database, or other sources.
-            // This example reads logs from a text file.
-
+            // Check if the log file exists
             if (!System.IO.File.Exists(_logFilePath))
             {
+                _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
                 return NotFound("Log file not found.");
             }
 
@@ -33,19 +37,23 @@ namespace QuantumCrossScripting.Controllers
             }
             catch (IOException ex)
             {
-                // Log the exception and return an internal server error response
+                _logger.LogError(ex, "Error reading logs from file: {LogFilePath}", _logFilePath);
                 return StatusCode(500, $"Error reading logs: {ex.Message}");
             }
         }
 
         private List<string> ReadLogsFromFile(string filePath)
         {
-            // Example: Reads logs from a file. Adjust this method based on your log storage solution.
+            // Reads logs from the file. You might want to adjust this based on your log format or storage solution.
             var logs = new List<string>();
 
-            foreach (var line in System.IO.File.ReadLines(filePath))
+            // Using a stream reader for better performance on large files
+            using (var reader = new StreamReader(filePath))
             {
-                logs.Add(line);
+                while (!reader.EndOfStream)
+                {
+                    logs.Add(reader.ReadLine());
+                }
             }
 
             return logs;
