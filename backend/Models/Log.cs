@@ -14,16 +14,26 @@ namespace QuantumCrossScripting.Models
 
         public DateTime Timestamp { get; set; }
 
-        // Optional: You can add more properties if needed, such as log level or type
+        // Log level with a default value if not provided
         [MaxLength(50)]
-        public string LogLevel { get; set; }  // e.g., "Info", "Warning", "Error"
+        [StringLength(50)] // Optional: Add this to explicitly specify the max length.
+        public string LogLevel { get; set; } = "Info";  // Default to "Info" if not set
 
+        // The source of the log (e.g., "AuthController", "DetectionService")
         [MaxLength(100)]
-        public string Source { get; set; }  // The source of the log, such as "AuthController" or "DetectionService"
+        [StringLength(100)]
+        public string Source { get; set; } = "System";  // Default to "System" if not set
+
+        // User who generated the log (optional and nullable)
+        public string? User { get; set; }  // Nullable user, in case not all logs are associated with a user
+
+        // Optional: Additional properties
+        [MaxLength(100)]
+        public string? RequestId { get; set; }  // Optional request identifier for tracing purposes
         
-        // Optional: User who generated the log (if applicable)
-        public string User { get; set; }  // Assumes you want to track the user, could be null
-        
+        [MaxLength(200)]
+        public string? ExceptionDetails { get; set; }  // Optional field for exception details (if applicable)
+
         public Log()
         {
             Timestamp = DateTime.UtcNow;  // Automatically set the timestamp when the log is created
