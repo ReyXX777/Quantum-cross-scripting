@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -7,8 +8,15 @@ namespace QuantumCrossScripting.Controllers
     [Route("[controller]")]
     public class DetectionController : ControllerBase
     {
-        // XSS detection regex pattern (basic example, refine as needed)
-        private static readonly string XssPattern = @"<[^>]*script[^>]*>|<[^>]*on\w+=|javascript:|data:text/";
+        // XSS detection regex pattern (improved example, refine as needed)
+        private static readonly string XssPattern = @"<[^>]*script[^>]*>|<[^>]*on\w+=|javascript:|data:text/|<[^>]+style\s*=\s*['""][^'""]*expression\s*\([^'""]*\)[^'""]*['""]";
+
+        private readonly ILogger<DetectionController> _logger;
+
+        public DetectionController(ILogger<DetectionController> logger)
+        {
+            _logger = logger;
+        }
 
         [HttpPost("detect")]
         public IActionResult Detect([FromBody] DetectionModel model)
@@ -18,15 +26,23 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest("Input data is required.");
             }
 
-            // Perform basic XSS detection using regular expression
+            // Perform XSS detection using regular expression
             bool isMalicious = DetectXss(model.InputData);
+
+            // Log the detection attempt
+            _logger.LogInformation($"XSS detection attempt for input: {model.InputData} | Malicious: {isMalicious}");
+
+            if (isMalicious)
+            {
+                return BadRequest("Potential XSS attack detected.");
+            }
 
             return Ok(new { IsMalicious = isMalicious });
         }
 
         private bool DetectXss(string input)
         {
-            // Check if the input contains any malicious XSS patterns
+            // Check if the input contains any malicious XSS patterns using the regex
             var regex = new Regex(XssPattern, RegexOptions.IgnoreCase);
             return regex.IsMatch(input);
         }
