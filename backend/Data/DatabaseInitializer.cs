@@ -1,24 +1,38 @@
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+
 public class DatabaseInitializer
 {
-    public static void Initialize(ApplicationDbContext context)
+    public static async Task InitializeAsync(ApplicationDbContext context)
     {
-        // Ensure that the database is created
-        context.Database.EnsureCreated();
-
-        // Check if any users exist to avoid seeding again
-        if (!context.Users.Any())
+        try
         {
-            SeedUsers(context);
+            // Ensure that the database is created, or apply migrations if using EF migrations
+            await context.Database.MigrateAsync();
+
+            // Check if any users exist to avoid seeding again
+            if (!context.Users.Any())
+            {
+                await SeedUsersAsync(context);
+            }
+
+            // Check if any threat logs exist to avoid seeding again
+            if (!context.ThreatLogs.Any())
+            {
+                await SeedThreatLogsAsync(context);
+            }
         }
-
-        // Check if any threat logs exist to avoid seeding again
-        if (!context.ThreatLogs.Any())
+        catch (Exception ex)
         {
-            SeedThreatLogs(context);
+            // Log the exception (you can integrate a logging framework here)
+            Console.WriteLine($"An error occurred while initializing the database: {ex.Message}");
+            // Optionally, throw or handle the exception based on your needs
         }
     }
 
-    private static void SeedUsers(ApplicationDbContext context)
+    private static async Task SeedUsersAsync(ApplicationDbContext context)
     {
         // Add initial users if none exist
         var users = new[]
@@ -37,11 +51,11 @@ public class DatabaseInitializer
             }
         };
 
-        context.Users.AddRange(users);
-        context.SaveChanges();
+        await context.Users.AddRangeAsync(users);
+        await context.SaveChangesAsync();
     }
 
-    private static void SeedThreatLogs(ApplicationDbContext context)
+    private static async Task SeedThreatLogsAsync(ApplicationDbContext context)
     {
         // Add initial threat logs if none exist
         var threatLogs = new[]
@@ -60,7 +74,7 @@ public class DatabaseInitializer
             }
         };
 
-        context.ThreatLogs.AddRange(threatLogs);
-        context.SaveChanges();
+        await context.ThreatLogs.AddRangeAsync(threatLogs);
+        await context.SaveChangesAsync();
     }
 }
