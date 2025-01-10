@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Linq;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -16,32 +17,42 @@ namespace QuantumCrossScripting.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IConfiguration _configuration;
-        private readonly UserManager<ApplicationUser> _userManager; // Assuming you're using ASP.NET Identity
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IConfiguration configuration, UserManager<ApplicationUser> userManager)
+        public AuthController(IConfiguration configuration, UserManager<ApplicationUser> userManager, ILogger<AuthController> logger)
         {
             _configuration = configuration;
             _userManager = userManager;
+            _logger = logger;
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginModel model)
         {
-            // Validate user credentials (you should use ASP.NET Identity or similar mechanism)
+            // Validate incoming model
+            if (model == null || string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password))
+            {
+                return BadRequest("Username and Password are required");
+            }
+
+            // Find user by username
             var user = await _userManager.FindByNameAsync(model.Username);
             if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
             {
+                _logger.LogWarning("Invalid login attempt for user: {Username}", model.Username);
                 return Unauthorized("Invalid credentials");
             }
 
+            // Prepare claims
             var claims = new[]
             {
                 new Claim(ClaimTypes.Name, model.Username),
-                // Additional claims can be added, e.g., roles, email
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, "User") // Assuming the user has a "User" role
+                new Claim(ClaimTypes.Role, await GetUserRole(user)) // Dynamically fetching role
             };
 
+            // Generate the JWT token
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -49,11 +60,17 @@ namespace QuantumCrossScripting.Controllers
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddHours(Convert.ToDouble(_configuration["Jwt:ExpirationHours"])), // Configurable expiration
+                expires: DateTime.Now.AddHours(Convert.ToDouble(_configuration["Jwt:ExpirationHours"])),
                 signingCredentials: creds
             );
 
             return Ok(new { Token = new JwtSecurityTokenHandler().WriteToken(token) });
+        }
+
+        private async Task<string> GetUserRole(ApplicationUser user)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            return roles.FirstOrDefault() ?? "User"; // Default to "User" if no role is found
         }
     }
 
