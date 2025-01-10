@@ -8,7 +8,7 @@ namespace QuantumCrossScripting.Controllers
     [Route("[controller]")]
     public class DetectionController : ControllerBase
     {
-        // XSS detection regex pattern (improved example, refine as needed)
+        // Improved XSS detection regex pattern (refine based on real-world cases)
         private static readonly string XssPattern = @"<[^>]*script[^>]*>|<[^>]*on\w+=|javascript:|data:text/|<[^>]+style\s*=\s*['""][^'""]*expression\s*\([^'""]*\)[^'""]*['""]";
 
         private readonly ILogger<DetectionController> _logger;
@@ -29,8 +29,8 @@ namespace QuantumCrossScripting.Controllers
             // Perform XSS detection using regular expression
             bool isMalicious = DetectXss(model.InputData);
 
-            // Log the detection attempt
-            _logger.LogInformation($"XSS detection attempt for input: {model.InputData} | Malicious: {isMalicious}");
+            // Log the detection attempt, avoid logging sensitive information
+            _logger.LogInformation($"XSS detection attempt for input | Malicious: {isMalicious}");
 
             if (isMalicious)
             {
