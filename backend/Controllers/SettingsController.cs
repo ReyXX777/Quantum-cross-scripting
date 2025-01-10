@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
+using Newtonsoft.Json;
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -9,24 +12,32 @@ namespace QuantumCrossScripting.Controllers
     public class SettingsController : ControllerBase
     {
         private readonly IConfiguration _configuration;
+        private readonly ILogger<SettingsController> _logger;
+        private readonly string _settingsFilePath;
 
-        // In-memory settings for demonstration; this could be replaced with a DB or a config file in production
-        private static SettingsModel _settings = new SettingsModel
-        {
-            Setting1 = "Value1",
-            Setting2 = "Value2"
-        };
-
-        public SettingsController(IConfiguration configuration)
+        // Constructor to inject IConfiguration and ILogger
+        public SettingsController(IConfiguration configuration, ILogger<SettingsController> logger)
         {
             _configuration = configuration;
+            _logger = logger;
+
+            // Assuming settings are stored in a JSON file; can be replaced with DB or another storage
+            _settingsFilePath = Path.Combine(Directory.GetCurrentDirectory(), "settings.json");
         }
 
         [HttpGet]
         public IActionResult GetSettings()
         {
-            // Return the current settings
-            return Ok(_settings);
+            try
+            {
+                var settings = ReadSettingsFromFile();
+                return Ok(settings);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading settings.");
+                return StatusCode(500, "Error retrieving settings.");
+            }
         }
 
         [HttpPost]
@@ -38,21 +49,51 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest("Invalid settings data.");
             }
 
-            // Optionally, perform more advanced validation (e.g., check if settings values meet certain criteria)
+            // Additional validation
             if (model.Setting1.Length > 100 || model.Setting2.Length > 100)
             {
                 return BadRequest("Settings values cannot be longer than 100 characters.");
             }
 
-            // Update settings (this could be saving to a database or file in a real-world application)
-            _settings.Setting1 = model.Setting1;
-            _settings.Setting2 = model.Setting2;
+            try
+            {
+                // Update settings in memory (for demonstration purposes)
+                var settings = new SettingsModel
+                {
+                    Setting1 = model.Setting1,
+                    Setting2 = model.Setting2
+                };
 
-            // Here you could persist the settings to a database or file if required
-            // For example, save to appsettings.json or a settings database.
+                // Save the settings to a JSON file
+                SaveSettingsToFile(settings);
 
-            // Return a success message
-            return Ok(new { message = "Settings updated successfully" });
+                _logger.LogInformation("Settings updated successfully.");
+                return Ok(new { message = "Settings updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating settings.");
+                return StatusCode(500, "Error updating settings.");
+            }
+        }
+
+        // Helper method to read settings from a JSON file
+        private SettingsModel ReadSettingsFromFile()
+        {
+            if (System.IO.File.Exists(_settingsFilePath))
+            {
+                var json = System.IO.File.ReadAllText(_settingsFilePath);
+                return JsonConvert.DeserializeObject<SettingsModel>(json);
+            }
+
+            return new SettingsModel(); // Return default settings if the file doesn't exist
+        }
+
+        // Helper method to save settings to a JSON file
+        private void SaveSettingsToFile(SettingsModel settings)
+        {
+            var json = JsonConvert.SerializeObject(settings, Formatting.Indented);
+            System.IO.File.WriteAllText(_settingsFilePath, json);
         }
     }
 
