@@ -1,75 +1,77 @@
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace QuantumCrossScripting.Data
 {
     public class ApplicationDbContext : DbContext
     {
         public DbSet<Setting> Settings { get; set; }
-        // Add other DbSets for your entities
         public DbSet<User> Users { get; set; }
         public DbSet<Log> Logs { get; set; }
         public DbSet<ThreatLog> ThreatLogs { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-        // Override OnModelCreating to configure entity relationships, constraints, and other settings
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure the Setting entity (ensure unique constraint on Key)
+            // Configure the Setting entity
             modelBuilder.Entity<Setting>()
-                .HasIndex(s => s.Key)  // Make sure the Key is unique for lookup
+                .HasIndex(s => s.Key)
                 .IsUnique();
 
-            // Configure other entities as necessary
-            // For example, configure relationships, table names, etc.
+            // Configure the User entity
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            // Configure the Log entity
             modelBuilder.Entity<Log>()
                 .Property(l => l.Timestamp)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");  // Set default value for Timestamp
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            // Configure the ThreatLog entity
             modelBuilder.Entity<ThreatLog>()
-                .HasOne(tl => tl.User)  // Example: If a ThreatLog has a User
-                .WithMany(u => u.ThreatLogs)  // A user can have many threat logs
+                .HasOne(tl => tl.User)
+                .WithMany(u => u.ThreatLogs)
                 .HasForeignKey(tl => tl.UserId)
-                .OnDelete(DeleteBehavior.Cascade);  // Specify the delete behavior
-
-            // Additional model configuration for other entities can go here
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 
-    // Example of the Setting entity
     public class Setting
     {
         public int Id { get; set; }
 
         [Required]
         [MaxLength(100)]
-        public string Key { get; set; }  // Unique key for settings
+        public string Key { get; set; }
 
         [MaxLength(500)]
         public string Value { get; set; }
 
-        public DateTime CreatedAt { get; set; }
-
-        // You can add more properties related to settings if needed
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
-    // Example of the User entity
     public class User
     {
+        public User()
+        {
+            ThreatLogs = new HashSet<ThreatLog>();
+        }
+
         public int Id { get; set; }
 
         [Required]
         [MaxLength(100)]
         public string Username { get; set; }
 
-        // Navigation property for ThreatLogs
-        public ICollection<ThreatLog> ThreatLogs { get; set; }  // User can have many ThreatLogs
+        public ICollection<ThreatLog> ThreatLogs { get; set; }
     }
 
-    // Example of the ThreatLog entity
     public class ThreatLog
     {
         public int Id { get; set; }
@@ -77,13 +79,12 @@ namespace QuantumCrossScripting.Data
         [Required]
         public string Details { get; set; }
 
-        public DateTime DetectedAt { get; set; }
+        public DateTime DetectedAt { get; set; } = DateTime.UtcNow;
 
-        public int UserId { get; set; }  // Foreign key to User
-        public User User { get; set; }  // Navigation property
+        public int UserId { get; set; }
+        public User User { get; set; }
     }
 
-    // Example of the Log entity
     public class Log
     {
         public int Id { get; set; }
@@ -92,21 +93,15 @@ namespace QuantumCrossScripting.Data
         [MaxLength(500)]
         public string Message { get; set; }
 
-        public DateTime Timestamp { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
-        // Optional: You can add more properties if needed, such as log level or type
         [MaxLength(50)]
-        public string LogLevel { get; set; }  // e.g., "Info", "Warning", "Error"
+        [RegularExpression("Info|Warning|Error", ErrorMessage = "LogLevel must be 'Info', 'Warning', or 'Error'.")]
+        public string LogLevel { get; set; }
 
         [MaxLength(100)]
-        public string Source { get; set; }  // The source of the log, such as "AuthController" or "DetectionService"
-        
-        // Optional: User who generated the log (if applicable)
-        public string User { get; set; }  // Assumes you want to track the user, could be null
+        public string Source { get; set; }
 
-        public Log()
-        {
-            Timestamp = DateTime.UtcNow;  // Automatically set the timestamp when the log is created
-        }
+        public string User { get; set; }
     }
 }
