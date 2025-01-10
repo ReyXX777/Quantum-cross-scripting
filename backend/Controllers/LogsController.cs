@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -17,11 +18,12 @@ namespace QuantumCrossScripting.Controllers
         public LogsController(IConfiguration configuration, ILogger<LogsController> logger)
         {
             _logger = logger;
-            _logFilePath = configuration["Logging:LogFilePath"] ?? "logs.txt"; // Get log file path from configuration or default to logs.txt
+            // Safely combining the log file path, ensuring no directory traversal happens
+            _logFilePath = Path.Combine(Directory.GetCurrentDirectory(), configuration["Logging:LogFilePath"] ?? "logs.txt");
         }
 
         [HttpGet]
-        public IActionResult GetLogs()
+        public IActionResult GetLogs(int? lines = 100)
         {
             // Check if the log file exists
             if (!System.IO.File.Exists(_logFilePath))
@@ -32,7 +34,7 @@ namespace QuantumCrossScripting.Controllers
 
             try
             {
-                var logs = ReadLogsFromFile(_logFilePath);
+                var logs = ReadLogsFromFile(_logFilePath, lines ?? 100); // Default to the last 100 lines
                 return Ok(logs);
             }
             catch (IOException ex)
@@ -40,22 +42,29 @@ namespace QuantumCrossScripting.Controllers
                 _logger.LogError(ex, "Error reading logs from file: {LogFilePath}", _logFilePath);
                 return StatusCode(500, $"Error reading logs: {ex.Message}");
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied to log file: {LogFilePath}", _logFilePath);
+                return StatusCode(403, $"Access denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while reading logs.");
+                return StatusCode(500, $"Unexpected error: {ex.Message}");
+            }
         }
 
-        private List<string> ReadLogsFromFile(string filePath)
+        private List<string> ReadLogsFromFile(string filePath, int lineCount)
         {
-            // Reads logs from the file. You might want to adjust this based on your log format or storage solution.
             var logs = new List<string>();
 
-            // Using a stream reader for better performance on large files
-            using (var reader = new StreamReader(filePath))
-            {
-                while (!reader.EndOfStream)
-                {
-                    logs.Add(reader.ReadLine());
-                }
-            }
+            // Ensure file is available before reading
+            if (new FileInfo(filePath).Length == 0) return logs;
 
+            // Read the file in reverse order to get the most recent entries first
+            var lines = System.IO.File.ReadLines(filePath).Reverse().Take(lineCount);
+
+            logs.AddRange(lines);
             return logs;
         }
     }
