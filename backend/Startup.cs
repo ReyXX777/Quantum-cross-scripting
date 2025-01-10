@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.OpenApi.Models;
 using QuantumCrossScripting.Data;  // Replace with the appropriate namespace for ApplicationDbContext
-using Swashbuckle.AspNetCore.SwaggerGen;
+using System.IO;
+using System.Reflection;
 
 public class Startup
 {
-    // IConfiguration is injected via the constructor to access appsettings
     public IConfiguration Configuration { get; }
 
     public Startup(IConfiguration configuration)
@@ -28,12 +30,40 @@ public class Startup
         // Register Swagger services
         services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+            c.SwaggerDoc("v1", new OpenApiInfo
             {
                 Title = "QuantumCrossScripting API",
-                Version = "v1"
+                Version = "v1",
+                Description = "API for QuantumCrossScripting application",
+                Contact = new OpenApiContact
+                {
+                    Name = "Support",
+                    Email = "support@quantumcrossscripting.com"
+                }
+            });
+
+            // Include XML comments in Swagger documentation
+            var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+            c.IncludeXmlComments(xmlPath);
+        });
+
+        // Add CORS policy
+        services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAllOrigins", builder =>
+            {
+                builder.AllowAnyOrigin()
+                       .AllowAnyHeader()
+                       .AllowAnyMethod();
             });
         });
+
+        // Add health checks
+        services.AddHealthChecks();
+
+        // Add response compression
+        services.AddResponseCompression();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -43,7 +73,7 @@ public class Startup
         {
             // Use the Developer Exception Page in development
             app.UseDeveloperExceptionPage();
-            
+
             // Enable Swagger in development environment
             app.UseSwagger();
             app.UseSwaggerUI(c =>
@@ -62,7 +92,15 @@ public class Startup
         // Other middleware
         app.UseHttpsRedirection();
         app.UseRouting();
+        app.UseCors("AllowAllOrigins");
         app.UseAuthorization();
+        app.UseResponseCompression();
+
+        // Serve static files
+        app.UseStaticFiles();
+
+        // Map health checks
+        app.UseHealthChecks("/health");
 
         // Map controllers
         app.UseEndpoints(endpoints =>
