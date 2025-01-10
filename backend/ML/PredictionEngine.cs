@@ -26,6 +26,7 @@ namespace QuantumCrossScripting.ML
         private readonly MLContext _mlContext;
         private ITransformer _model;
         private readonly string _modelZipPath = "ML/Model/XssDetectionModel.zip"; // Path to the zipped model
+        private readonly string _extractedModelPath = "ML/Model/extracted_model"; // Directory to extract the model
 
         // PredictionEngine should be initialized once and reused.
         private PredictionEngine<XssDetectionModelInput, XssDetectionModelOutput> _predictionEngine;
@@ -41,21 +42,26 @@ namespace QuantumCrossScripting.ML
         {
             try
             {
+                // Check if the model file exists
                 if (!File.Exists(_modelZipPath))
                 {
                     throw new FileNotFoundException("Model file not found: " + _modelZipPath);
                 }
 
-                // Unzip model if it's not already extracted
-                string extractedModelPath = Path.Combine(Path.GetDirectoryName(_modelZipPath), "extracted_model");
-                if (!Directory.Exists(extractedModelPath))
+                // Check if the model is already extracted or if we need to re-extract
+                if (!Directory.Exists(_extractedModelPath) || !File.Exists(Path.Combine(_extractedModelPath, "XssDetectionModel.zip")))
                 {
-                    Directory.CreateDirectory(extractedModelPath); // Ensure directory exists
-                    ZipFile.ExtractToDirectory(_modelZipPath, extractedModelPath);
+                    Directory.CreateDirectory(_extractedModelPath); // Ensure directory exists
+                    ZipFile.ExtractToDirectory(_modelZipPath, _extractedModelPath);
                 }
 
                 // Load the model from the extracted directory
-                string modelFilePath = Path.Combine(extractedModelPath, "XssDetectionModel.zip");
+                string modelFilePath = Path.Combine(_extractedModelPath, "XssDetectionModel.zip");
+                if (!File.Exists(modelFilePath))
+                {
+                    throw new InvalidOperationException("Model file not found in extracted directory.");
+                }
+
                 _model = _mlContext.Model.Load(modelFilePath, out var modelInputSchema);
 
                 // Create a PredictionEngine once during initialization for reuse
@@ -77,6 +83,13 @@ namespace QuantumCrossScripting.ML
 
             try
             {
+                // Ensure prediction engine is initialized
+                if (_predictionEngine == null)
+                {
+                    throw new InvalidOperationException("Prediction engine not initialized.");
+                }
+
+                // Predict the result
                 var prediction = _predictionEngine.Predict(new XssDetectionModelInput { InputText = inputText });
                 return prediction.IsMalicious;
             }
