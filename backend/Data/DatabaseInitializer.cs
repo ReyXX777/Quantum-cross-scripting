@@ -1,11 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 
 public class DatabaseInitializer
 {
-    public static async Task InitializeAsync(ApplicationDbContext context)
+    private readonly ILogger<DatabaseInitializer> _logger;
+
+    public DatabaseInitializer(ILogger<DatabaseInitializer> logger)
+    {
+        _logger = logger;
+    }
+
+    public async Task InitializeAsync(ApplicationDbContext context)
     {
         try
         {
@@ -27,12 +35,13 @@ public class DatabaseInitializer
         catch (Exception ex)
         {
             // Log the exception (you can integrate a logging framework here)
-            Console.WriteLine($"An error occurred while initializing the database: {ex.Message}");
+            _logger.LogError(ex, "An error occurred while initializing the database.");
             // Optionally, throw or handle the exception based on your needs
+            throw;
         }
     }
 
-    private static async Task SeedUsersAsync(ApplicationDbContext context)
+    private async Task SeedUsersAsync(ApplicationDbContext context)
     {
         // Add initial users if none exist
         var users = new[]
@@ -53,10 +62,21 @@ public class DatabaseInitializer
 
         await context.Users.AddRangeAsync(users);
         await context.SaveChangesAsync();
+        _logger.LogInformation("Users seeded successfully.");
     }
 
-    private static async Task SeedThreatLogsAsync(ApplicationDbContext context)
+    private async Task SeedThreatLogsAsync(ApplicationDbContext context)
     {
+        // Ensure the users exist before seeding threat logs
+        var user1 = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
+        var user2 = await context.Users.FirstOrDefaultAsync(u => u.Username == "user1");
+
+        if (user1 == null || user2 == null)
+        {
+            _logger.LogError("Users not found for threat logs seeding.");
+            return;  // Don't proceed with seeding if users are not found
+        }
+
         // Add initial threat logs if none exist
         var threatLogs = new[]
         {
@@ -64,17 +84,18 @@ public class DatabaseInitializer
             {
                 Details = "SQL Injection attempt detected.",
                 DetectedAt = DateTime.UtcNow,
-                UserId = 1  // Assuming user with ID 1 exists
+                UserId = user1.UserId  // Use the dynamically retrieved user IDs
             },
             new ThreatLog
             {
                 Details = "Cross-Site Scripting (XSS) attack detected.",
                 DetectedAt = DateTime.UtcNow,
-                UserId = 2  // Assuming user with ID 2 exists
+                UserId = user2.UserId  // Use the dynamically retrieved user IDs
             }
         };
 
         await context.ThreatLogs.AddRangeAsync(threatLogs);
         await context.SaveChangesAsync();
+        _logger.LogInformation("Threat logs seeded successfully.");
     }
 }
