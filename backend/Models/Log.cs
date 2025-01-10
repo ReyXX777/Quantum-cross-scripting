@@ -16,12 +16,10 @@ namespace QuantumCrossScripting.Models
 
         // Log level with a default value if not provided
         [MaxLength(50)]
-        [StringLength(50)] // Optional: Add this to explicitly specify the max length.
         public string LogLevel { get; set; } = "Info";  // Default to "Info" if not set
 
         // The source of the log (e.g., "AuthController", "DetectionService")
         [MaxLength(100)]
-        [StringLength(100)]
         public string Source { get; set; } = "System";  // Default to "System" if not set
 
         // User who generated the log (optional and nullable)
@@ -34,9 +32,22 @@ namespace QuantumCrossScripting.Models
         [MaxLength(200)]
         public string? ExceptionDetails { get; set; }  // Optional field for exception details (if applicable)
 
+        // Constructor to set the timestamp automatically
         public Log()
         {
             Timestamp = DateTime.UtcNow;  // Automatically set the timestamp when the log is created
+        }
+
+        // Optional constructor to initialize with a message and source
+        public Log(string message, string? user = null, string? requestId = null, string? exceptionDetails = null)
+        {
+            Message = message;
+            User = user;
+            RequestId = requestId;
+            ExceptionDetails = exceptionDetails;
+            Timestamp = DateTime.UtcNow;  // Set the timestamp
+            LogLevel = "Info";  // Default value
+            Source = "System";  // Default value
         }
     }
 }
