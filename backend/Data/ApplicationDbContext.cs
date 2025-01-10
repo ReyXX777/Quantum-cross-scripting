@@ -1,5 +1,3 @@
-// Quantum-cross-scripting/backend/Data/ApplicationDbContext.cs
-
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -42,6 +40,10 @@ namespace QuantumCrossScripting.Data
 
                 // Add index for Email (optional) for faster lookups
                 entity.HasIndex(u => u.Email).IsUnique();
+
+                // Optional: Add a timestamp for concurrency handling
+                entity.Property(u => u.RowVersion)
+                      .IsRowVersion();
             });
 
             // Configurations for ThreatLog entity
@@ -52,7 +54,8 @@ namespace QuantumCrossScripting.Data
 
                 // Define required properties
                 entity.Property(t => t.Details)
-                      .IsRequired();
+                      .IsRequired()
+                      .HasMaxLength(500); // Limiting size for better DB storage
 
                 entity.Property(t => t.DetectedAt)
                       .HasDefaultValueSql("GETDATE()");
@@ -73,6 +76,9 @@ namespace QuantumCrossScripting.Data
         public string Username { get; set; }
         public string Email { get; set; }
         public DateTime CreatedAt { get; set; }
+
+        // Add a RowVersion property to handle concurrency
+        public byte[] RowVersion { get; set; }  // Used for optimistic concurrency control
 
         // Navigation property to access associated ThreatLogs
         public ICollection<ThreatLog> ThreatLogs { get; set; }
