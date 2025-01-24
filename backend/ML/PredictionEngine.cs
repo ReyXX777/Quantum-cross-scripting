@@ -98,5 +98,67 @@ namespace QuantumCrossScripting.ML
                 throw new InvalidOperationException("Error during prediction.", ex);
             }
         }
+
+        // Method to retrain the model with new data
+        public void RetrainModel(XssDetectionModelInput[] trainingData)
+        {
+            if (trainingData == null || trainingData.Length == 0)
+            {
+                throw new ArgumentException("Training data cannot be null or empty.");
+            }
+
+            try
+            {
+                // Load the training data into an IDataView
+                var dataView = _mlContext.Data.LoadFromEnumerable(trainingData);
+
+                // Define the pipeline for retraining
+                var pipeline = _mlContext.Transforms.Text.FeaturizeText("Features", nameof(XssDetectionModelInput.InputText))
+                    .Append(_mlContext.BinaryClassification.Trainers.LbfgsLogisticRegression(labelColumnName: "IsMalicious", featureColumnName: "Features"));
+
+                // Retrain the model
+                var retrainedModel = pipeline.Fit(dataView);
+
+                // Save the retrained model
+                string retrainedModelPath = Path.Combine(Path.GetDirectoryName(_modelZipPath), "RetrainedModel.zip");
+                _mlContext.Model.Save(retrainedModel, dataView.Schema, retrainedModelPath);
+
+                // Update the model and prediction engine
+                _model = retrainedModel;
+                _predictionEngine = _mlContext.Model.CreatePredictionEngine<XssDetectionModelInput, XssDetectionModelOutput>(_model);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error during model retraining.", ex);
+            }
+        }
+
+        // Method to evaluate the model's performance
+        public void EvaluateModel(XssDetectionModelInput[] testData)
+        {
+            if (testData == null || testData.Length == 0)
+            {
+                throw new ArgumentException("Test data cannot be null or empty.");
+            }
+
+            try
+            {
+                // Load the test data into an IDataView
+                var dataView = _mlContext.Data.LoadFromEnumerable(testData);
+
+                // Evaluate the model
+                var predictions = _model.Transform(dataView);
+                var metrics = _mlContext.BinaryClassification.Evaluate(predictions, "IsMalicious");
+
+                // Log or return the evaluation metrics
+                Console.WriteLine($"Accuracy: {metrics.Accuracy}");
+                Console.WriteLine($"AUC: {metrics.AreaUnderRocCurve}");
+                Console.WriteLine($"F1 Score: {metrics.F1Score}");
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Error during model evaluation.", ex);
+            }
+        }
     }
 }
