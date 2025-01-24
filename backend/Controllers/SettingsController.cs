@@ -77,6 +77,47 @@ namespace QuantumCrossScripting.Controllers
             }
         }
 
+        [HttpDelete("reset")]
+        public IActionResult ResetSettings()
+        {
+            try
+            {
+                if (System.IO.File.Exists(_settingsFilePath))
+                {
+                    System.IO.File.Delete(_settingsFilePath);
+                    _logger.LogInformation("Settings reset to default successfully.");
+                    return Ok(new { message = "Settings reset to default successfully." });
+                }
+
+                return NotFound("Settings file not found.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting settings.");
+                return StatusCode(500, "Error resetting settings.");
+            }
+        }
+
+        [HttpGet("validate")]
+        public IActionResult ValidateSettings()
+        {
+            try
+            {
+                var settings = ReadSettingsFromFile();
+                if (string.IsNullOrWhiteSpace(settings.Setting1) || string.IsNullOrWhiteSpace(settings.Setting2))
+                {
+                    return BadRequest("Settings are incomplete or invalid.");
+                }
+
+                return Ok(new { message = "Settings are valid." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating settings.");
+                return StatusCode(500, "Error validating settings.");
+            }
+        }
+
         // Helper method to read settings from a JSON file
         private SettingsModel ReadSettingsFromFile()
         {
