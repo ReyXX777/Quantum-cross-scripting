@@ -54,6 +54,77 @@ namespace QuantumCrossScripting.Controllers
             }
         }
 
+        [HttpPost("clear")]
+        public IActionResult ClearLogs()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_logFilePath))
+                {
+                    _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                    return NotFound("Log file not found.");
+                }
+
+                System.IO.File.WriteAllText(_logFilePath, string.Empty);
+                _logger.LogInformation("Logs cleared successfully.");
+                return Ok(new { Message = "Logs cleared successfully." });
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "Error clearing logs from file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error clearing logs: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied to log file: {LogFilePath}", _logFilePath);
+                return StatusCode(403, $"Access denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while clearing logs.");
+                return StatusCode(500, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("search")]
+        public IActionResult SearchLogs([FromBody] SearchModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.Keyword))
+            {
+                return BadRequest("Keyword is required.");
+            }
+
+            try
+            {
+                if (!System.IO.File.Exists(_logFilePath))
+                {
+                    _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                    return NotFound("Log file not found.");
+                }
+
+                var logs = System.IO.File.ReadLines(_logFilePath)
+                    .Where(line => line.Contains(model.Keyword, System.StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                return Ok(logs);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "Error searching logs in file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error searching logs: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied to log file: {LogFilePath}", _logFilePath);
+                return StatusCode(403, $"Access denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while searching logs.");
+                return StatusCode(500, $"Unexpected error: {ex.Message}");
+            }
+        }
+
         private List<string> ReadLogsFromFile(string filePath, int lineCount)
         {
             var logs = new List<string>();
@@ -67,5 +138,10 @@ namespace QuantumCrossScripting.Controllers
             logs.AddRange(lines);
             return logs;
         }
+    }
+
+    public class SearchModel
+    {
+        public string Keyword { get; set; }
     }
 }
