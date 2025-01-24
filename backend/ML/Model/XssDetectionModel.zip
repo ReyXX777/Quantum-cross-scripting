@@ -87,5 +87,73 @@ namespace QuantumCrossScripting.ML.Model
                 return StatusCode(500, new { Error = $"Error during prediction: {ex.Message}" });
             }
         }
+
+        // Endpoint to retrain the model with new data
+        [HttpPost("retrain")]
+        public async Task<IActionResult> RetrainModel([FromBody] XssDetectionModelInput[] trainingData)
+        {
+            if (trainingData == null || trainingData.Length == 0)
+            {
+                return BadRequest("Training data is required.");
+            }
+
+            try
+            {
+                // Load the training data into an IDataView
+                var dataView = _mlContext.Data.LoadFromEnumerable(trainingData);
+
+                // Define the pipeline for retraining
+                var pipeline = _mlContext.Transforms.Text.FeaturizeText("Features", nameof(XssDetectionModelInput.InputText))
+                    .Append(_mlContext.BinaryClassification.Trainers.LbfgsLogisticRegression(labelColumnName: "IsMalicious", featureColumnName: "Features"));
+
+                // Retrain the model
+                var retrainedModel = pipeline.Fit(dataView);
+
+                // Save the retrained model
+                string retrainedModelPath = Path.Combine(Path.GetDirectoryName(_modelPath), "RetrainedModel.zip");
+                _mlContext.Model.Save(retrainedModel, dataView.Schema, retrainedModelPath);
+
+                // Update the model and prediction engine
+                _model = retrainedModel;
+                _predictionEngine = _mlContext.Model.CreatePredictionEngine<XssDetectionModelInput, XssDetectionModelOutput>(_model);
+
+                return Ok(new { Message = "Model retrained successfully." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = $"Error during model retraining: {ex.Message}" });
+            }
+        }
+
+        // Endpoint to evaluate the model's performance
+        [HttpPost("evaluate")]
+        public IActionResult EvaluateModel([FromBody] XssDetectionModelInput[] testData)
+        {
+            if (testData == null || testData.Length == 0)
+            {
+                return BadRequest("Test data is required.");
+            }
+
+            try
+            {
+                // Load the test data into an IDataView
+                var dataView = _mlContext.Data.LoadFromEnumerable(testData);
+
+                // Evaluate the model
+                var predictions = _model.Transform(dataView);
+                var metrics = _mlContext.BinaryClassification.Evaluate(predictions, "IsMalicious");
+
+                return Ok(new
+                {
+                    Accuracy = metrics.Accuracy,
+                    AUC = metrics.AreaUnderRocCurve,
+                    F1Score = metrics.F1Score
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = $"Error during model evaluation: {ex.Message}" });
+            }
+        }
     }
 }
