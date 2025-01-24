@@ -65,5 +65,19 @@ namespace QuantumCrossScripting.Models
         {
             UpdatedAt = DateTime.UtcNow;
         }
+
+        // Method to deactivate the user
+        public void Deactivate()
+        {
+            IsActive = false;
+            UpdateTimestamp();
+        }
+
+        // Method to activate the user
+        public void Activate()
+        {
+            IsActive = true;
+            UpdateTimestamp();
+        }
     }
 }
