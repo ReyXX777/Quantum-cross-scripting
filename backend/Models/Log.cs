@@ -49,5 +49,27 @@ namespace QuantumCrossScripting.Models
             LogLevel = "Info";  // Default value
             Source = "System";  // Default value
         }
+
+        // Method to update the log level
+        public void SetLogLevel(string logLevel)
+        {
+            if (string.IsNullOrWhiteSpace(logLevel))
+            {
+                throw new ArgumentException("Log level cannot be null or empty.");
+            }
+
+            LogLevel = logLevel;
+        }
+
+        // Method to update the source of the log
+        public void SetSource(string source)
+        {
+            if (string.IsNullOrWhiteSpace(source))
+            {
+                throw new ArgumentException("Source cannot be null or empty.");
+            }
+
+            Source = source;
+        }
     }
 }
