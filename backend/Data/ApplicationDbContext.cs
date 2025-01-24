@@ -11,9 +11,10 @@ namespace QuantumCrossScripting.Data
         {
         }
 
-        // DbSet properties to represent tables for User and ThreatLog entities
+        // DbSet properties to represent tables for User, ThreatLog, and AuditLog entities
         public DbSet<User> Users { get; set; }
         public DbSet<ThreatLog> ThreatLogs { get; set; }
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         // Configure model properties and relationships using Fluent API
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -66,6 +67,31 @@ namespace QuantumCrossScripting.Data
                       .HasForeignKey(t => t.UserId)
                       .OnDelete(DeleteBehavior.Cascade); // Delete associated ThreatLogs when User is deleted
             });
+
+            // Configurations for AuditLog entity
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                // Define the primary key
+                entity.HasKey(a => a.AuditLogId);
+
+                // Define required properties
+                entity.Property(a => a.Action)
+                      .IsRequired()
+                      .HasMaxLength(100);
+
+                entity.Property(a => a.Details)
+                      .IsRequired()
+                      .HasMaxLength(500);
+
+                entity.Property(a => a.Timestamp)
+                      .HasDefaultValueSql("GETDATE()");
+
+                // Optional foreign key to associate AuditLogs with Users
+                entity.HasOne(a => a.User)
+                      .WithMany(u => u.AuditLogs)
+                      .HasForeignKey(a => a.UserId)
+                      .OnDelete(DeleteBehavior.Cascade); // Delete associated AuditLogs when User is deleted
+            });
         }
     }
 
@@ -82,6 +108,9 @@ namespace QuantumCrossScripting.Data
 
         // Navigation property to access associated ThreatLogs
         public ICollection<ThreatLog> ThreatLogs { get; set; }
+
+        // Navigation property to access associated AuditLogs
+        public ICollection<AuditLog> AuditLogs { get; set; }
     }
 
     // ThreatLog entity class to represent a threat detection log
@@ -92,6 +121,21 @@ namespace QuantumCrossScripting.Data
         public DateTime DetectedAt { get; set; }
 
         // Foreign key property to associate the ThreatLog with a User
+        public int UserId { get; set; }
+
+        // Navigation property to access the associated User
+        public User User { get; set; }
+    }
+
+    // AuditLog entity class to represent an audit log
+    public class AuditLog
+    {
+        public int AuditLogId { get; set; }
+        public string Action { get; set; }
+        public string Details { get; set; }
+        public DateTime Timestamp { get; set; }
+
+        // Foreign key property to associate the AuditLog with a User
         public int UserId { get; set; }
 
         // Navigation property to access the associated User
