@@ -31,6 +31,18 @@ public class DatabaseInitializer
             {
                 await SeedThreatLogsAsync(context);
             }
+
+            // Check if any audit logs exist to avoid seeding again
+            if (!context.AuditLogs.Any())
+            {
+                await SeedAuditLogsAsync(context);
+            }
+
+            // Check if any settings exist to avoid seeding again
+            if (!context.Settings.Any())
+            {
+                await SeedSettingsAsync(context);
+            }
         }
         catch (Exception ex)
         {
@@ -98,4 +110,65 @@ public class DatabaseInitializer
         await context.SaveChangesAsync();
         _logger.LogInformation("Threat logs seeded successfully.");
     }
+
+    private async Task SeedAuditLogsAsync(ApplicationDbContext context)
+    {
+        // Ensure the users exist before seeding audit logs
+        var user1 = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
+        var user2 = await context.Users.FirstOrDefaultAsync(u => u.Username == "user1");
+
+        if (user1 == null || user2 == null)
+        {
+            _logger.LogError("Users not found for audit logs seeding.");
+            return;  // Don't proceed with seeding if users are not found
+        }
+
+        // Add initial audit logs if none exist
+        var auditLogs = new[]
+        {
+            new AuditLog
+            {
+                Action = "User Login",
+                Details = "User admin logged in successfully.",
+                Timestamp = DateTime.UtcNow,
+                UserId = user1.UserId
+            },
+            new AuditLog
+            {
+                Action = "User Login",
+                Details = "User user1 logged in successfully.",
+                Timestamp = DateTime.UtcNow,
+                UserId = user2.UserId
+            }
+        };
+
+        await context.AuditLogs.AddRangeAsync(auditLogs);
+        await context.SaveChangesAsync();
+        _logger.LogInformation("Audit logs seeded successfully.");
+    }
+
+    private async Task SeedSettingsAsync(ApplicationDbContext context)
+    {
+        // Add initial settings if none exist
+        var settings = new[]
+        {
+            new Settings
+            {
+                Setting1 = "DefaultSetting1",
+                Setting2 = "DefaultSetting2"
+            }
+        };
+
+        await context.Settings.AddRangeAsync(settings);
+        await context.SaveChangesAsync();
+        _logger.LogInformation("Settings seeded successfully.");
+    }
+}
+
+// Settings entity class to represent application settings
+public class Settings
+{
+    public int SettingsId { get; set; }
+    public string Setting1 { get; set; }
+    public string Setting2 { get; set; }
 }
