@@ -69,6 +69,34 @@ namespace QuantumCrossScripting.Controllers
             return Ok(new { AnalysisResult = analysisResult });
         }
 
+        [HttpPost("validate")]
+        public IActionResult Validate([FromBody] DetectionModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.InputData))
+            {
+                return BadRequest("Input data is required.");
+            }
+
+            // Validate the input data for allowed characters and patterns
+            bool isValid = ValidateInput(model.InputData);
+
+            return Ok(new { IsValid = isValid });
+        }
+
+        [HttpPost("log")]
+        public IActionResult Log([FromBody] DetectionModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.InputData))
+            {
+                return BadRequest("Input data is required.");
+            }
+
+            // Log the input data securely
+            _logger.LogInformation($"Input data logged securely: {model.InputData}");
+
+            return Ok(new { Message = "Input data logged successfully." });
+        }
+
         private bool DetectXss(string input)
         {
             // Check if the input contains any malicious XSS patterns using the regex
@@ -94,6 +122,14 @@ namespace QuantumCrossScripting.Controllers
                 TotalMatches = matches.Count,
                 Matches = matches.Select(m => m.Value).ToList()
             };
+        }
+
+        private bool ValidateInput(string input)
+        {
+            // Validate the input for allowed characters and patterns
+            var allowedPattern = @"^[a-zA-Z0-9\s.,!?@#\$%\^&\*\(\)\-_\+=\[\]\{\}\|\\;:'""<>\?\/`~]*$";
+            var regex = new Regex(allowedPattern);
+            return regex.IsMatch(input);
         }
     }
 
