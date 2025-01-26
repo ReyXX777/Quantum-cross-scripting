@@ -9,6 +9,8 @@ using System;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
+using System.ComponentModel.DataAnnotations;
+using System.Threading.Tasks;
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -30,43 +32,29 @@ namespace QuantumCrossScripting.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginModel model)
+        public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginModel model)
         {
-            // Validate incoming model
-            if (model == null || string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password))
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Username and Password are required");
+                return BadRequest(ModelState);
             }
 
-            // Find user by username
             var user = await _userManager.FindByNameAsync(model.Username);
             if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
             {
                 _logger.LogWarning("Invalid login attempt for user: {Username}", model.Username);
-                return Unauthorized("Invalid credentials");
+                return Unauthorized(new ProblemDetails { Title = "Invalid credentials", Status = 401 });
             }
 
-            // Prepare claims
             var claims = new[]
             {
                 new Claim(ClaimTypes.Name, model.Username),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, await GetUserRole(user)) // Dynamically fetching role
+                new Claim(ClaimTypes.Role, await GetUserRole(user))
             };
 
-            // Generate the JWT token
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddHours(Convert.ToDouble(_configuration["Jwt:ExpirationHours"])),
-                signingCredentials: creds
-            );
-
-            return Ok(new { Token = new JwtSecurityTokenHandler().WriteToken(token) });
+            var token = GenerateJwtToken(claims);
+            return Ok(new LoginResponse { Token = new JwtSecurityTokenHandler().WriteToken(token) });
         }
 
         [HttpPost("logout")]
@@ -79,11 +67,11 @@ namespace QuantumCrossScripting.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterModel model)
+        public async Task<ActionResult<RegisterResponse>> Register([FromBody] RegisterModel model)
         {
-            if (model == null || string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password) || string.IsNullOrEmpty(model.Email))
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Username, Password, and Email are required");
+                return BadRequest(ModelState);
             }
 
             var user = new ApplicationUser { UserName = model.Username, Email = model.Email };
@@ -92,34 +80,67 @@ namespace QuantumCrossScripting.Controllers
             if (!result.Succeeded)
             {
                 _logger.LogWarning("User registration failed for user: {Username}", model.Username);
-                return BadRequest(result.Errors);
+                return BadRequest(new ProblemDetails { Title = "Registration failed", Detail = string.Join(", ", result.Errors.Select(e => e.Description)), Status = 400 });
             }
 
             _logger.LogInformation("User registered successfully: {Username}", model.Username);
-            return Ok(new { Message = "User registered successfully." });
+            return Ok(new RegisterResponse { Message = "User registered successfully." });
+        }
+
+        private JwtSecurityToken GenerateJwtToken(Claim[] claims)
+        {
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            return new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddHours(Convert.ToDouble(_configuration["Jwt:ExpirationHours"])),
+                signingCredentials: creds
+            );
         }
 
         private async Task<string> GetUserRole(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
-            return roles.FirstOrDefault() ?? "User"; // Default to "User" if no role is found
+            return roles.FirstOrDefault() ?? "User";
         }
     }
 
     public class LoginModel
     {
+        [Required]
         public string Username { get; set; }
+
+        [Required]
         public string Password { get; set; }
     }
 
     public class RegisterModel
     {
+        [Required]
         public string Username { get; set; }
-        public string Password { get; set; }
+
+        [Required]
+        [EmailAddress]
         public string Email { get; set; }
+
+        [Required]
+        [MinLength(6)]
+        public string Password { get; set; }
     }
 
-    // ApplicationUser class is part of ASP.NET Identity
+    public class LoginResponse
+    {
+        public string Token { get; set; }
+    }
+
+    public class RegisterResponse
+    {
+        public string Message { get; set; }
+    }
+
     public class ApplicationUser : IdentityUser
     {
         // Additional properties can be added here
