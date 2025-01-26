@@ -118,6 +118,56 @@ namespace QuantumCrossScripting.Controllers
             }
         }
 
+        [HttpPost("backup")]
+        public IActionResult BackupSettings()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_settingsFilePath))
+                {
+                    return NotFound("Settings file not found.");
+                }
+
+                var backupFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"settings_backup_{DateTime.Now:yyyyMMddHHmmss}.json");
+                System.IO.File.Copy(_settingsFilePath, backupFilePath);
+
+                _logger.LogInformation("Settings backup created successfully at {BackupFilePath}", backupFilePath);
+                return Ok(new { message = "Settings backup created successfully.", backupFilePath });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating settings backup.");
+                return StatusCode(500, "Error creating settings backup.");
+            }
+        }
+
+        [HttpPost("restore")]
+        public IActionResult RestoreSettings([FromBody] RestoreModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.BackupFilePath))
+            {
+                return BadRequest("Backup file path is required.");
+            }
+
+            try
+            {
+                if (!System.IO.File.Exists(model.BackupFilePath))
+                {
+                    return NotFound("Backup file not found.");
+                }
+
+                System.IO.File.Copy(model.BackupFilePath, _settingsFilePath, overwrite: true);
+
+                _logger.LogInformation("Settings restored successfully from {BackupFilePath}", model.BackupFilePath);
+                return Ok(new { message = "Settings restored successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error restoring settings.");
+                return StatusCode(500, "Error restoring settings.");
+            }
+        }
+
         // Helper method to read settings from a JSON file
         private SettingsModel ReadSettingsFromFile()
         {
@@ -143,5 +193,11 @@ namespace QuantumCrossScripting.Controllers
     {
         public string Setting1 { get; set; }
         public string Setting2 { get; set; }
+    }
+
+    // Restore model
+    public class RestoreModel
+    {
+        public string BackupFilePath { get; set; }
     }
 }
