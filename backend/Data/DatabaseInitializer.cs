@@ -43,6 +43,18 @@ public class DatabaseInitializer
             {
                 await SeedSettingsAsync(context);
             }
+
+            // Check if any roles exist to avoid seeding again
+            if (!context.Roles.Any())
+            {
+                await SeedRolesAsync(context);
+            }
+
+            // Check if any user roles exist to avoid seeding again
+            if (!context.UserRoles.Any())
+            {
+                await SeedUserRolesAsync(context);
+            }
         }
         catch (Exception ex)
         {
@@ -163,6 +175,60 @@ public class DatabaseInitializer
         await context.SaveChangesAsync();
         _logger.LogInformation("Settings seeded successfully.");
     }
+
+    private async Task SeedRolesAsync(ApplicationDbContext context)
+    {
+        // Add initial roles if none exist
+        var roles = new[]
+        {
+            new Role
+            {
+                RoleName = "Admin"
+            },
+            new Role
+            {
+                RoleName = "User"
+            }
+        };
+
+        await context.Roles.AddRangeAsync(roles);
+        await context.SaveChangesAsync();
+        _logger.LogInformation("Roles seeded successfully.");
+    }
+
+    private async Task SeedUserRolesAsync(ApplicationDbContext context)
+    {
+        // Ensure the users and roles exist before seeding user roles
+        var adminUser = await context.Users.FirstOrDefaultAsync(u => u.Username == "admin");
+        var user1 = await context.Users.FirstOrDefaultAsync(u => u.Username == "user1");
+        var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Admin");
+        var userRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "User");
+
+        if (adminUser == null || user1 == null || adminRole == null || userRole == null)
+        {
+            _logger.LogError("Users or roles not found for user roles seeding.");
+            return;  // Don't proceed with seeding if users or roles are not found
+        }
+
+        // Add initial user roles if none exist
+        var userRoles = new[]
+        {
+            new UserRole
+            {
+                UserId = adminUser.UserId,
+                RoleId = adminRole.RoleId
+            },
+            new UserRole
+            {
+                UserId = user1.UserId,
+                RoleId = userRole.RoleId
+            }
+        };
+
+        await context.UserRoles.AddRangeAsync(userRoles);
+        await context.SaveChangesAsync();
+        _logger.LogInformation("User roles seeded successfully.");
+    }
 }
 
 // Settings entity class to represent application settings
@@ -171,4 +237,24 @@ public class Settings
     public int SettingsId { get; set; }
     public string Setting1 { get; set; }
     public string Setting2 { get; set; }
+}
+
+// Role entity class to represent a role
+public class Role
+{
+    public int RoleId { get; set; }
+    public string RoleName { get; set; }
+
+    // Navigation property to access associated UserRoles
+    public ICollection<UserRole> UserRoles { get; set; }
+}
+
+// UserRole entity class to represent a many-to-many relationship between User and Role
+public class UserRole
+{
+    public int UserId { get; set; }
+    public User User { get; set; }
+
+    public int RoleId { get; set; }
+    public Role Role { get; set; }
 }
