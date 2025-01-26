@@ -22,13 +22,15 @@ namespace QuantumCrossScripting.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<AuthController> _logger;
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
 
-        public AuthController(IConfiguration configuration, UserManager<ApplicationUser> userManager, ILogger<AuthController> logger, SignInManager<ApplicationUser> signInManager)
+        public AuthController(IConfiguration configuration, UserManager<ApplicationUser> userManager, ILogger<AuthController> logger, SignInManager<ApplicationUser> signInManager, RoleManager<IdentityRole> roleManager)
         {
             _configuration = configuration;
             _userManager = userManager;
             _logger = logger;
             _signInManager = signInManager;
+            _roleManager = roleManager;
         }
 
         [HttpPost("login")]
@@ -83,8 +85,36 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest(new ProblemDetails { Title = "Registration failed", Detail = string.Join(", ", result.Errors.Select(e => e.Description)), Status = 400 });
             }
 
+            // Assign default role to the user
+            await _userManager.AddToRoleAsync(user, "User");
+
             _logger.LogInformation("User registered successfully: {Username}", model.Username);
             return Ok(new RegisterResponse { Message = "User registered successfully." });
+        }
+
+        [HttpPost("create-role")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateRole([FromBody] RoleModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var roleExists = await _roleManager.RoleExistsAsync(model.RoleName);
+            if (roleExists)
+            {
+                return BadRequest(new ProblemDetails { Title = "Role already exists", Status = 400 });
+            }
+
+            var result = await _roleManager.CreateAsync(new IdentityRole(model.RoleName));
+            if (!result.Succeeded)
+            {
+                return BadRequest(new ProblemDetails { Title = "Role creation failed", Detail = string.Join(", ", result.Errors.Select(e => e.Description)), Status = 400 });
+            }
+
+            _logger.LogInformation("Role created successfully: {RoleName}", model.RoleName);
+            return Ok(new { Message = "Role created successfully." });
         }
 
         private JwtSecurityToken GenerateJwtToken(Claim[] claims)
@@ -129,6 +159,12 @@ namespace QuantumCrossScripting.Controllers
         [Required]
         [MinLength(6)]
         public string Password { get; set; }
+    }
+
+    public class RoleModel
+    {
+        [Required]
+        public string RoleName { get; set; }
     }
 
     public class LoginResponse
