@@ -125,6 +125,78 @@ namespace QuantumCrossScripting.Controllers
             }
         }
 
+        [HttpPost("archive")]
+        public IActionResult ArchiveLogs()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_logFilePath))
+                {
+                    _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                    return NotFound("Log file not found.");
+                }
+
+                var archiveFilePath = Path.Combine(Directory.GetCurrentDirectory(), "logs_archive.txt");
+                System.IO.File.Copy(_logFilePath, archiveFilePath, overwrite: true);
+                _logger.LogInformation("Logs archived successfully to {ArchiveFilePath}", archiveFilePath);
+                return Ok(new { Message = "Logs archived successfully." });
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "Error archiving logs from file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error archiving logs: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied to log file: {LogFilePath}", _logFilePath);
+                return StatusCode(403, $"Access denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while archiving logs.");
+                return StatusCode(500, $"Unexpected error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("filter")]
+        public IActionResult FilterLogs([FromBody] FilterModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.Level))
+            {
+                return BadRequest("Filter level is required.");
+            }
+
+            try
+            {
+                if (!System.IO.File.Exists(_logFilePath))
+                {
+                    _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                    return NotFound("Log file not found.");
+                }
+
+                var logs = System.IO.File.ReadLines(_logFilePath)
+                    .Where(line => line.Contains($"[{model.Level}]", System.StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                return Ok(logs);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "Error filtering logs in file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error filtering logs: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Access denied to log file: {LogFilePath}", _logFilePath);
+                return StatusCode(403, $"Access denied: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while filtering logs.");
+                return StatusCode(500, $"Unexpected error: {ex.Message}");
+            }
+        }
+
         private List<string> ReadLogsFromFile(string filePath, int lineCount)
         {
             var logs = new List<string>();
@@ -143,5 +215,10 @@ namespace QuantumCrossScripting.Controllers
     public class SearchModel
     {
         public string Keyword { get; set; }
+    }
+
+    public class FilterModel
+    {
+        public string Level { get; set; }
     }
 }
