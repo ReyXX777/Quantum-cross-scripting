@@ -155,5 +155,38 @@ namespace QuantumCrossScripting.ML.Model
                 return StatusCode(500, new { Error = $"Error during model evaluation: {ex.Message}" });
             }
         }
+
+        // Endpoint to get model version information
+        [HttpGet("version")]
+        public IActionResult GetModelVersion()
+        {
+            try
+            {
+                var modelVersion = _model.GetModelVersion();
+                return Ok(new { Version = modelVersion });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Error = $"Error retrieving model version: {ex.Message}" });
+            }
+        }
+
+        // Endpoint to check model health
+        [HttpGet("health")]
+        public IActionResult CheckModelHealth()
+        {
+            try
+            {
+                // Perform a simple prediction to check if the model is working
+                var testInput = new XssDetectionModelInput { InputText = "Test input" };
+                var result = _predictionEngine.Predict(testInput);
+
+                return Ok(new { Status = "Healthy", Message = "Model is functioning correctly." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Status = "Unhealthy", Error = $"Model health check failed: {ex.Message}" });
+            }
+        }
     }
 }
