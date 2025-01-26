@@ -15,6 +15,8 @@ namespace QuantumCrossScripting.Data
         public DbSet<User> Users { get; set; }
         public DbSet<ThreatLog> ThreatLogs { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<Role> Roles { get; set; }
+        public DbSet<UserRole> UserRoles { get; set; }
 
         // Configure model properties and relationships using Fluent API
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -92,6 +94,40 @@ namespace QuantumCrossScripting.Data
                       .HasForeignKey(a => a.UserId)
                       .OnDelete(DeleteBehavior.Cascade); // Delete associated AuditLogs when User is deleted
             });
+
+            // Configurations for Role entity
+            modelBuilder.Entity<Role>(entity =>
+            {
+                // Define the primary key
+                entity.HasKey(r => r.RoleId);
+
+                // Define required properties
+                entity.Property(r => r.RoleName)
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                // Add index for RoleName (optional) for faster lookups
+                entity.HasIndex(r => r.RoleName).IsUnique();
+            });
+
+            // Configurations for UserRole entity (many-to-many relationship between User and Role)
+            modelBuilder.Entity<UserRole>(entity =>
+            {
+                // Define the composite primary key
+                entity.HasKey(ur => new { ur.UserId, ur.RoleId });
+
+                // Define foreign key to User
+                entity.HasOne(ur => ur.User)
+                      .WithMany(u => u.UserRoles)
+                      .HasForeignKey(ur => ur.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // Define foreign key to Role
+                entity.HasOne(ur => ur.Role)
+                      .WithMany(r => r.UserRoles)
+                      .HasForeignKey(ur => ur.RoleId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
         }
     }
 
@@ -111,6 +147,9 @@ namespace QuantumCrossScripting.Data
 
         // Navigation property to access associated AuditLogs
         public ICollection<AuditLog> AuditLogs { get; set; }
+
+        // Navigation property to access associated UserRoles
+        public ICollection<UserRole> UserRoles { get; set; }
     }
 
     // ThreatLog entity class to represent a threat detection log
@@ -140,5 +179,25 @@ namespace QuantumCrossScripting.Data
 
         // Navigation property to access the associated User
         public User User { get; set; }
+    }
+
+    // Role entity class to represent a role
+    public class Role
+    {
+        public int RoleId { get; set; }
+        public string RoleName { get; set; }
+
+        // Navigation property to access associated UserRoles
+        public ICollection<UserRole> UserRoles { get; set; }
+    }
+
+    // UserRole entity class to represent a many-to-many relationship between User and Role
+    public class UserRole
+    {
+        public int UserId { get; set; }
+        public User User { get; set; }
+
+        public int RoleId { get; set; }
+        public Role Role { get; set; }
     }
 }
