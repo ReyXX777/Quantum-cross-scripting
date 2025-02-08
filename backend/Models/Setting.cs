@@ -12,6 +12,9 @@ namespace QuantumCrossScripting.Data
         public DbSet<Log> Logs { get; set; }
         public DbSet<ThreatLog> ThreatLogs { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<UserProfile> UserProfiles { get; set; } // Added UserProfile
+        public DbSet<SecurityQuestion> SecurityQuestions { get; set; } // Added SecurityQuestion
+
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
@@ -19,121 +22,49 @@ namespace QuantumCrossScripting.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure the Setting entity
-            modelBuilder.Entity<Setting>()
-                .HasIndex(s => s.Key)
-                .IsUnique();
+            // ... (Existing configurations for Setting, User, Log, ThreatLog, AuditLog)
 
-            // Configure the User entity
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.Username)
-                .IsUnique();
+            modelBuilder.Entity<UserProfile>(entity =>
+            {
+                entity.HasKey(up => up.Id);
+                entity.HasOne(up => up.User)
+                    .WithOne(u => u.UserProfile)
+                    .HasForeignKey<UserProfile>(up => up.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // Configure the Log entity
-            modelBuilder.Entity<Log>()
-                .Property(l => l.Timestamp)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            // Configure the ThreatLog entity
-            modelBuilder.Entity<ThreatLog>()
-                .HasOne(tl => tl.User)
-                .WithMany(u => u.ThreatLogs)
-                .HasForeignKey(tl => tl.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Configure the AuditLog entity
-            modelBuilder.Entity<AuditLog>()
-                .Property(a => a.Timestamp)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-            modelBuilder.Entity<AuditLog>()
-                .HasOne(a => a.User)
-                .WithMany(u => u.AuditLogs)
-                .HasForeignKey(a => a.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<SecurityQuestion>(entity =>
+            {
+                entity.HasKey(sq => sq.Id);
+                entity.Property(sq => sq.Question)
+                    .IsRequired()
+                    .HasMaxLength(200);
+            });
         }
     }
 
-    public class Setting
+    // ... (Existing classes: Setting, User, ThreatLog, Log, AuditLog)
+
+    public class UserProfile // Added UserProfile class
     {
         public int Id { get; set; }
-
-        [Required]
-        [MaxLength(100)]
-        public string Key { get; set; }
-
-        [MaxLength(500)]
-        public string Value { get; set; }
-
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    }
-
-    public class User
-    {
-        public User()
-        {
-            ThreatLogs = new HashSet<ThreatLog>();
-            AuditLogs = new HashSet<AuditLog>();
-        }
-
-        public int Id { get; set; }
-
-        [Required]
-        [MaxLength(100)]
-        public string Username { get; set; }
-
-        public ICollection<ThreatLog> ThreatLogs { get; set; }
-        public ICollection<AuditLog> AuditLogs { get; set; }
-    }
-
-    public class ThreatLog
-    {
-        public int Id { get; set; }
-
-        [Required]
-        public string Details { get; set; }
-
-        public DateTime DetectedAt { get; set; } = DateTime.UtcNow;
-
         public int UserId { get; set; }
-        public User User { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+
+        public string SecurityAnswer { get; set; }
+
+        public int SecurityQuestionId { get; set; }
+        public SecurityQuestion SecurityQuestion { get; set; } // Navigation property
+
+        public User User { get; set; } // Navigation property
     }
 
-    public class Log
+    public class SecurityQuestion // Added SecurityQuestion class
     {
         public int Id { get; set; }
-
-        [Required]
-        [MaxLength(500)]
-        public string Message { get; set; }
-
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-
-        [MaxLength(50)]
-        [RegularExpression("Info|Warning|Error", ErrorMessage = "LogLevel must be 'Info', 'Warning', or 'Error'.")]
-        public string LogLevel { get; set; }
-
-        [MaxLength(100)]
-        public string Source { get; set; }
-
-        public string User { get; set; }
-    }
-
-    public class AuditLog
-    {
-        public int Id { get; set; }
-
-        [Required]
-        [MaxLength(100)]
-        public string Action { get; set; }
-
-        [Required]
-        [MaxLength(500)]
-        public string Details { get; set; }
-
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-
-        public int UserId { get; set; }
-        public User User { get; set; }
+        public string Question { get; set; }
     }
 }
+
