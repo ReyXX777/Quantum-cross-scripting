@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
-using BCrypt.Net; // Use bcrypt for secure password hashing
+using BCrypt.Net;
 
 namespace QuantumCrossScripting.Models
 {
@@ -12,72 +12,90 @@ namespace QuantumCrossScripting.Models
 
         [Required]
         [MaxLength(50)]
-        public string Username { get; set; }  // User's username, should be unique
+        public string Username { get; set; }
 
         [Required]
         [DataType(DataType.Password)]
         [MinLength(8)]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$", 
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$",
             ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.")]
-        public string Password { get; set; }  // User's password, should be stored securely
+        public string Password { get; set; }
 
         [Required]
         [EmailAddress]
         [MaxLength(100)]
-        public string Email { get; set; }  // User's email address
+        public string Email { get; set; }
 
-        public DateTime CreatedAt { get; set; }  // Timestamp when the user was created
-        public DateTime? UpdatedAt { get; set; }  // Timestamp when the user was last updated (nullable)
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
         [MaxLength(50)]
         [RegularExpression("Admin|User|Moderator", ErrorMessage = "Role must be 'Admin', 'User', or 'Moderator'.")]
-        public string Role { get; set; }  // User's role (e.g., Admin, User, Moderator)
+        public string Role { get; set; }
 
-        public bool IsActive { get; set; }  // Flag indicating if the user is active
+        public bool IsActive { get; set; }
+
+        // Added two new properties:
+        [MaxLength(200)]
+        public string? ProfilePictureUrl { get; set; } // URL to the user's profile picture
+
+        [MaxLength(500)]
+        public string? Bio { get; set; } // User's biography or about me section
+
 
         public User()
         {
-            CreatedAt = DateTime.UtcNow;  // Automatically set the creation timestamp
-            IsActive = true;  // New users are active by default
-            Role = "User";  // Default role for new users
+            CreatedAt = DateTime.UtcNow;
+            IsActive = true;
+            Role = "User";
         }
 
-        // Hash the password before storing it
         public void SetPassword(string plainPassword)
         {
             if (string.IsNullOrWhiteSpace(plainPassword))
                 throw new ArgumentException("Password cannot be empty or whitespace.");
 
-            Password = BCrypt.Net.BCrypt.HashPassword(plainPassword);  // Use bcrypt for secure hashing
+            Password = BCrypt.Net.BCrypt.HashPassword(plainPassword);
         }
 
-        // Method to validate a password during login (comparison against the hashed password)
         public bool ValidatePassword(string plainPassword)
         {
             if (string.IsNullOrWhiteSpace(plainPassword))
                 return false;
 
-            return BCrypt.Net.BCrypt.Verify(plainPassword, Password);  // Verify using bcrypt
+            return BCrypt.Net.BCrypt.Verify(plainPassword, Password);
         }
 
-        // Update the UpdatedAt timestamp
         public void UpdateTimestamp()
         {
             UpdatedAt = DateTime.UtcNow;
         }
 
-        // Method to deactivate the user
         public void Deactivate()
         {
             IsActive = false;
             UpdateTimestamp();
         }
 
-        // Method to activate the user
         public void Activate()
         {
             IsActive = true;
             UpdateTimestamp();
         }
+
+        // Method to update profile picture URL
+        public void SetProfilePicture(string pictureUrl)
+        {
+            ProfilePictureUrl = pictureUrl;
+            UpdateTimestamp(); // Update timestamp when profile picture is changed
+        }
+
+        // Method to update user bio
+        public void SetBio(string bio)
+        {
+            Bio = bio;
+            UpdateTimestamp(); // Update timestamp when bio is changed
+        }
     }
 }
+
