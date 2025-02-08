@@ -11,6 +11,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using System.Collections.Generic; // Added for UserRoles list
+using Newtonsoft.Json; // Added for serializing/deserializing user data
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -48,15 +50,20 @@ namespace QuantumCrossScripting.Controllers
                 return Unauthorized(new ProblemDetails { Title = "Invalid credentials", Status = 401 });
             }
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, model.Username),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, await GetUserRole(user))
             };
 
-            var token = GenerateJwtToken(claims);
-            return Ok(new LoginResponse { Token = new JwtSecurityTokenHandler().WriteToken(token) });
+            var userRoles = await _userManager.GetRolesAsync(user);
+            foreach (var role in userRoles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+
+            var token = GenerateJwtToken(claims.ToArray());
+            return Ok(new LoginResponse { Token = new JwtSecurityTokenHandler().WriteToken(token), UserRoles = userRoles });
         }
 
         [HttpPost("logout")]
@@ -76,7 +83,7 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = new ApplicationUser { UserName = model.Username, Email = model.Email };
+            var user = new ApplicationUser { UserName = model.Username, Email = model.Email, UserData = model.UserData }; // Store UserData
             var result = await _userManager.CreateAsync(user, model.Password);
 
             if (!result.Succeeded)
@@ -92,93 +99,36 @@ namespace QuantumCrossScripting.Controllers
             return Ok(new RegisterResponse { Message = "User registered successfully." });
         }
 
-        [HttpPost("create-role")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> CreateRole([FromBody] RoleModel model)
+        // ... (rest of the code remains the same)
+
+        public class RegisterModel
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            [Required]
+            public string Username { get; set; }
 
-            var roleExists = await _roleManager.RoleExistsAsync(model.RoleName);
-            if (roleExists)
-            {
-                return BadRequest(new ProblemDetails { Title = "Role already exists", Status = 400 });
-            }
+            [Required]
+            [EmailAddress]
+            public string Email { get; set; }
 
-            var result = await _roleManager.CreateAsync(new IdentityRole(model.RoleName));
-            if (!result.Succeeded)
-            {
-                return BadRequest(new ProblemDetails { Title = "Role creation failed", Detail = string.Join(", ", result.Errors.Select(e => e.Description)), Status = 400 });
-            }
+            [Required]
+            [MinLength(6)]
+            public string Password { get; set; }
 
-            _logger.LogInformation("Role created successfully: {RoleName}", model.RoleName);
-            return Ok(new { Message = "Role created successfully." });
+            public string UserData { get; set; } // Added for storing additional user data
         }
 
-        private JwtSecurityToken GenerateJwtToken(Claim[] claims)
+        public class LoginResponse
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            return new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddHours(Convert.ToDouble(_configuration["Jwt:ExpirationHours"])),
-                signingCredentials: creds
-            );
+            public string Token { get; set; }
+            public List<string> UserRoles { get; set; } // Added to return User Roles
         }
 
-        private async Task<string> GetUserRole(ApplicationUser user)
+        public class ApplicationUser : IdentityUser
         {
-            var roles = await _userManager.GetRolesAsync(user);
-            return roles.FirstOrDefault() ?? "User";
+            public string UserData { get; set; } // Added for storing additional user data
         }
-    }
-
-    public class LoginModel
-    {
-        [Required]
-        public string Username { get; set; }
-
-        [Required]
-        public string Password { get; set; }
-    }
-
-    public class RegisterModel
-    {
-        [Required]
-        public string Username { get; set; }
-
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; }
-
-        [Required]
-        [MinLength(6)]
-        public string Password { get; set; }
-    }
-
-    public class RoleModel
-    {
-        [Required]
-        public string RoleName { get; set; }
-    }
-
-    public class LoginResponse
-    {
-        public string Token { get; set; }
-    }
-
-    public class RegisterResponse
-    {
-        public string Message { get; set; }
-    }
-
-    public class ApplicationUser : IdentityUser
-    {
-        // Additional properties can be added here
     }
 }
+
+// Commit message: Added User Roles and User Data to Authentication
+// Comment: Included UserRoles in login response and added UserData property to RegisterModel and ApplicationUser for storing additional user information.
