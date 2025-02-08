@@ -14,43 +14,46 @@ namespace QuantumCrossScripting.Models
 
         public DateTime Timestamp { get; set; }
 
-        // Log level with a default value if not provided
         [MaxLength(50)]
-        public string LogLevel { get; set; } = "Info";  // Default to "Info" if not set
+        public string LogLevel { get; set; } = "Info";
 
-        // The source of the log (e.g., "AuthController", "DetectionService")
         [MaxLength(100)]
-        public string Source { get; set; } = "System";  // Default to "System" if not set
+        public string Source { get; set; } = "System";
 
-        // User who generated the log (optional and nullable)
-        public string? User { get; set; }  // Nullable user, in case not all logs are associated with a user
+        public string? User { get; set; }
 
-        // Optional: Additional properties
         [MaxLength(100)]
-        public string? RequestId { get; set; }  // Optional request identifier for tracing purposes
-        
+        public string? RequestId { get; set; }
+
         [MaxLength(200)]
-        public string? ExceptionDetails { get; set; }  // Optional field for exception details (if applicable)
+        public string? ExceptionDetails { get; set; }
+
+        // Added Category and EventId
+        [MaxLength(100)]
+        public string? Category { get; set; } // Categorize logs (e.g., "Security", "Application")
+
+        public int EventId { get; set; } // Numerical event identifier
 
         // Constructor to set the timestamp automatically
         public Log()
         {
-            Timestamp = DateTime.UtcNow;  // Automatically set the timestamp when the log is created
+            Timestamp = DateTime.UtcNow;
+            EventId = 0; // Initialize EventId
         }
 
-        // Optional constructor to initialize with a message and source
-        public Log(string message, string? user = null, string? requestId = null, string? exceptionDetails = null)
+        public Log(string message, string? user = null, string? requestId = null, string? exceptionDetails = null, string? category = null, int eventId = 0)
         {
             Message = message;
             User = user;
             RequestId = requestId;
             ExceptionDetails = exceptionDetails;
-            Timestamp = DateTime.UtcNow;  // Set the timestamp
-            LogLevel = "Info";  // Default value
-            Source = "System";  // Default value
+            Timestamp = DateTime.UtcNow;
+            LogLevel = "Info";
+            Source = "System";
+            Category = category; // Set category
+            EventId = eventId;   // Set event ID
         }
 
-        // Method to update the log level
         public void SetLogLevel(string logLevel)
         {
             if (string.IsNullOrWhiteSpace(logLevel))
@@ -61,7 +64,6 @@ namespace QuantumCrossScripting.Models
             LogLevel = logLevel;
         }
 
-        // Method to update the source of the log
         public void SetSource(string source)
         {
             if (string.IsNullOrWhiteSpace(source))
@@ -71,5 +73,16 @@ namespace QuantumCrossScripting.Models
 
             Source = source;
         }
+
+        public void SetCategory(string category)
+        {
+            Category = category;
+        }
+
+        public void SetEventId(int eventId)
+        {
+            EventId = eventId;
+        }
     }
 }
+
