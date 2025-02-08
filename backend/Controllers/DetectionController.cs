@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using System.Linq;
+using System.Collections.Generic; // For storing analysis results
+using System.Text.Json; // For JSON serialization
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -9,7 +11,6 @@ namespace QuantumCrossScripting.Controllers
     [Route("[controller]")]
     public class DetectionController : ControllerBase
     {
-        // Improved XSS detection regex pattern (refine based on real-world cases)
         private static readonly string XssPattern = @"<[^>]*script[^>]*>|<[^>]*on\w+=|javascript:|data:text/|<[^>]+style\s*=\s*['""][^'""]*expression\s*\([^'""]*\)[^'""]*['""]";
 
         private readonly ILogger<DetectionController> _logger;
@@ -27,10 +28,8 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest("Input data is required.");
             }
 
-            // Perform XSS detection using regular expression
             bool isMalicious = DetectXss(model.InputData);
 
-            // Log the detection attempt, avoid logging sensitive information
             _logger.LogInformation($"XSS detection attempt for input | Malicious: {isMalicious}");
 
             if (isMalicious)
@@ -49,7 +48,6 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest("Input data is required.");
             }
 
-            // Sanitize the input data
             string sanitizedData = SanitizeInput(model.InputData);
 
             return Ok(new { SanitizedData = sanitizedData });
@@ -63,7 +61,6 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest("Input data is required.");
             }
 
-            // Analyze the input data for potential threats
             var analysisResult = AnalyzeInput(model.InputData);
 
             return Ok(new { AnalysisResult = analysisResult });
@@ -77,7 +74,6 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest("Input data is required.");
             }
 
-            // Validate the input data for allowed characters and patterns
             bool isValid = ValidateInput(model.InputData);
 
             return Ok(new { IsValid = isValid });
@@ -91,7 +87,6 @@ namespace QuantumCrossScripting.Controllers
                 return BadRequest("Input data is required.");
             }
 
-            // Log the input data securely
             _logger.LogInformation($"Input data logged securely: {model.InputData}");
 
             return Ok(new { Message = "Input data logged successfully." });
@@ -99,35 +94,33 @@ namespace QuantumCrossScripting.Controllers
 
         private bool DetectXss(string input)
         {
-            // Check if the input contains any malicious XSS patterns using the regex
             var regex = new Regex(XssPattern, RegexOptions.IgnoreCase);
             return regex.IsMatch(input);
         }
 
         private string SanitizeInput(string input)
         {
-            // Remove potentially harmful tags and attributes
             var sanitizedInput = Regex.Replace(input, XssPattern, string.Empty, RegexOptions.IgnoreCase);
             return sanitizedInput;
         }
 
-        private object AnalyzeInput(string input)
+        private AnalysisResult AnalyzeInput(string input)
         {
-            // Analyze the input for potential threats
             var regex = new Regex(XssPattern, RegexOptions.IgnoreCase);
             var matches = regex.Matches(input);
 
-            return new
+            var analysisResult = new AnalysisResult
             {
                 TotalMatches = matches.Count,
-                Matches = matches.Select(m => m.Value).ToList()
+                Matches = matches.Select(m => new MatchDetails { Value = m.Value, Index = m.Index }).ToList()
             };
+
+            return analysisResult;
         }
 
         private bool ValidateInput(string input)
         {
-            // Validate the input for allowed characters and patterns
-            var allowedPattern = @"^[a-zA-Z0-9\s.,!?@#\$%\^&\*\(\)\-_\+=\[\]\{\}\|\\;:'""<>\?\/`~]*$";
+            var allowedPattern = @"^[a-zA-Z0-9\s.,!?@#\$%\^&\*\(\)\-_\+=\[\]\{\}\|\\;:'""<>\?\/`~]*$"; // Example
             var regex = new Regex(allowedPattern);
             return regex.IsMatch(input);
         }
@@ -137,4 +130,17 @@ namespace QuantumCrossScripting.Controllers
     {
         public string InputData { get; set; }
     }
+
+    public class AnalysisResult
+    {
+        public int TotalMatches { get; set; }
+        public List<MatchDetails> Matches { get; set; }
+    }
+
+    public class MatchDetails
+    {
+        public string Value { get; set; }
+        public int Index { get; set; }
+    }
 }
+
