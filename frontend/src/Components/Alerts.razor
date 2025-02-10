@@ -1,5 +1,51 @@
-@page "/logs"
+@using Microsoft.AspNetCore.Components
 
-<h3>Logs</h3>
+<div class="alert @AlertTypeClass" role="alert">
+    @if (Icon != null)
+    {
+        <i class="@Icon"></i>
+    }
+    @ChildContent
+    @if (ShowCloseButton)
+    {
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close" @onclick="OnCloseClicked">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    }
+</div>
 
-<p>Here are the logs</p>
+@code {
+    [Parameter]
+    public string AlertType { get; set; } = "alert-primary";
+
+    [Parameter]
+    public string Icon { get; set; }
+
+    [Parameter]
+    public bool ShowCloseButton { get; set; } = true;
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+
+    private string AlertTypeClass => $"alert-{AlertType}";
+
+    private async Task OnCloseClicked()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    // Added components
+    [Parameter]
+    public string Title { get; set; }
+
+    [Parameter]
+    public bool IsDismissable { get; set; } = true;
+
+}
