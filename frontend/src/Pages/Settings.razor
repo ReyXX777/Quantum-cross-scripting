@@ -2,4 +2,95 @@
 
 <h3>Settings</h3>
 
-<p>Manage your settings here.</p>
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    User Profile
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@userProfile" OnValidSubmit="@HandleValidSubmit">
+                        <DataAnnotationsValidator />
+
+                        <div class="form-group">
+                            <label for="name">Name:</label>
+                            <InputText id="name" @bind-Value="userProfile.Name" class="form-control" />
+                            <ValidationMessage For="@(() => userProfile.Name)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email:</label>
+                            <InputText id="email" @bind-Value="userProfile.Email" class="form-control" />
+                            <ValidationMessage For="@(() => userProfile.Email)" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    Security
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-warning">Change Password</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserProfile userProfile = new UserProfile();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load user profile data here (e.g., from an API)
+        await Task.Delay(100); // Simulate loading delay
+        userProfile.Name = "John Doe";
+        userProfile.Email = "john.doe@example.com";
+    }
+
+
+    private async Task HandleValidSubmit()
+    {
+        // Save user profile data here (e.g., to an API)
+        Console.WriteLine("Saving user profile...");
+        await Task.Delay(100); // Simulate saving delay
+        Console.WriteLine("User profile saved.");
+    }
+
+    public class UserProfile
+    {
+        [Required]
+        public string Name { get; set; }
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; }
+    }
+
+
+
+    // Added Components
+
+    [Parameter]
+    public string PageTitle { get; set; } = "Settings";
+
+    [Parameter]
+    public bool ShowNotifications { get; set; } = true;
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public string SaveButtonText { get; set; } = "Update";
+
+    [Parameter]
+    public bool IsSaving { get; set; } = false;
+
+
+}
