@@ -1,0 +1,67 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">@BrandName</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+            <li class="nav-item active">
+                <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Features</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">Pricing</a>
+            </li>
+           @* Example of using the new component *@
+            <li class="nav-item">
+                <NavLink class="nav-link" href="/dashboard">Dashboard</NavLink>
+            </li>
+
+        </ul>
+        @* Example of using the new component *@
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <SearchBar OnSearch="HandleSearch" />
+            </li>
+        </ul>
+    </div>
+</nav>
+
+@code {
+    [Parameter]
+    public string BrandName { get; set; } = "My App";
+
+    [Parameter]
+    public EventCallback OnLogout { get; set; }
+
+    [Parameter]
+    public RenderFragment UserProfileDropdown { get; set; }
+
+    [Parameter]
+    public string ThemeColor { get; set; } = "light"; // Added component
+
+    [Parameter]
+    public bool ShowSearchBar { get; set; } = true;    // Added component
+
+    [Parameter]
+    public EventCallback<string> OnSearch { get; set; } // Added component
+
+    private async Task HandleLogout()
+    {
+        if (OnLogout.HasDelegate)
+        {
+            await OnLogout.InvokeAsync();
+        }
+    }
+
+    private void HandleSearch(string searchTerm)
+    {
+        if (OnSearch.HasDelegate)
+        {
+            OnSearch.InvokeAsync(searchTerm);
+        }
+    }
+
+}
