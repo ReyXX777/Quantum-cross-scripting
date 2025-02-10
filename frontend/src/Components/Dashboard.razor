@@ -2,4 +2,98 @@
 
 <h3>Dashboard</h3>
 
-<p>Welcome to the Dashboard</p>
+<div class="container">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    User Statistics
+                </div>
+                <div class="card-body">
+                    <p>Total Users: @TotalUsers</p>
+                    <p>Active Users: @ActiveUsers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    System Performance
+                </div>
+                <div class="card-body">
+                    <p>CPU Usage: @CPUUsage%</p>
+                    <p>Memory Usage: @MemoryUsage%</p>
+                </div>
+            </div>
+        </div>
+         <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    Recent Activity
+                </div>
+                <div class="card-body">
+                    <ul>
+                        @foreach (var activity in RecentActivity)
+                        {
+                            <li>@activity</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    Data Visualization
+                </div>
+                <div class="card-body">
+                    <div id="chart-container"></div>  </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    Quick Links
+                </div>
+                <div class="card-body">
+                    <a href="#" class="btn btn-primary">Link 1</a>
+                    <a href="#" class="btn btn-secondary">Link 2</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private int TotalUsers = 150;
+    private int ActiveUsers = 120;
+    private double CPUUsage = 35.2;
+    private double MemoryUsage = 60.8;
+    private List<string> RecentActivity = new List<string> {
+        "User A logged in",
+        "Data backup completed",
+        "System update installed"
+    };
+
+    //Added Components
+
+    [Parameter]
+    public string PageTitle { get; set; } = "Dashboard";
+
+    [Parameter]
+    public EventCallback OnRefresh { get; set; }
+
+    [Parameter]
+    public bool ShowWelcomeMessage { get; set; } = true;
+
+    [Parameter]
+    public string WelcomeMessage { get; set; } = "Welcome to the Dashboard!";
+
+    [Parameter]
+    public RenderFragment FooterContent { get; set; }
+
+}
