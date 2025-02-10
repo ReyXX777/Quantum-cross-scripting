@@ -1,0 +1,71 @@
+@page "/logs"
+
+<h3>Logs</h3>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    Log Entries
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Level</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in Logs)
+                            {
+                                <tr>
+                                    <td>@log.Timestamp</td>
+                                    <td>@log.Level</td>
+                                    <td>@log.Message</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<LogEntry> Logs = new List<LogEntry> {
+        new LogEntry { Timestamp = DateTime.Now, Level = "Info", Message = "System started." },
+        new LogEntry { Timestamp = DateTime.Now, Level = "Warning", Message = "Low disk space." },
+        new LogEntry { Timestamp = DateTime.Now, Level = "Error", Message = "Database connection failed." }
+    };
+
+    public class LogEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public string Level { get; set; }
+        public string Message { get; set; }
+    }
+
+
+    // Added Components
+
+    [Parameter]
+    public string LogSource { get; set; } = "Application";
+
+    [Parameter]
+    public int MaxLogEntries { get; set; } = 100;
+
+    [Parameter]
+    public EventCallback OnLogRefresh { get; set; }
+
+    [Parameter]
+    public bool ShowSearchBox { get; set; } = true;
+
+    [Parameter]
+    public string FilterLevel { get; set; } = "All";
+
+
+}
