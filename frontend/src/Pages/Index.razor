@@ -1,5 +1,54 @@
 @page "/"
 
-<h3>Welcome to AI-XSS Prevention</h3>
+<h1>Welcome to Quantum Cross-Scripting</h1>
 
-<p>This is the homepage.</p>
+<p>This is the home page of your application.</p>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    Featured Content
+                </div>
+                <div class="card-body">
+                    <p>Some featured content goes here.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    Latest News
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li>News Item 1</li>
+                        <li>News Item 2</li>
+                        <li>News Item 3</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Added Components
+
+    [Parameter]
+    public string PageTitle { get; set; } = "Home";
+
+    [Parameter]
+    public string WelcomeMessage { get; set; } = "Welcome!";
+
+    [Parameter]
+    public DateTime LastUpdated { get; set; } = DateTime.Now;
+
+    [Parameter]
+    public bool ShowNewsletterSignup { get; set; } = true;
+
+    [Parameter]
+    public EventCallback OnContactUsClicked { get; set; }
+
+}
