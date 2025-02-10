@@ -1,5 +1,7 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Routing
+@using YourNamespace.Components // Assuming your components are in this namespace
+@using YourNamespace.Shared // Assuming your layouts are in this namespace
 
 <Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
@@ -7,7 +9,12 @@
     </Found>
     <NotFound>
         <LayoutView Layout="@typeof(MainLayout)">
-            <p>Sorry, there's nothing at this address.</p>
+            <div class="page-not-found">  @* Added Component 1: Wrapping in a div for styling *@
+                <PageTitle>Page Not Found</PageTitle> @* Added Component 2: Page Title Component *@
+                <ErrorDisplay Message="Sorry, there's nothing at this address." /> @* Added Component 3: Custom Error Component *@
+                <NavLink href="/" class="btn btn-primary mt-3">Go Home</NavLink> @* Added Component 4: Link to Home *@
+                <CounterComponent/> @* Added Component 5: Example of another custom component*@
+            </div>
         </LayoutView>
     </NotFound>
 </Router>
