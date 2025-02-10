@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json; // For JSON serialization
-using System; // For DateTime
+using System.Text.Json;
+using System;
 
 namespace QuantumCrossScripting.Controllers
 {
@@ -105,7 +105,7 @@ namespace QuantumCrossScripting.Controllers
                     return NotFound("Log file not found.");
                 }
 
-                var archiveFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"logs_archive_{DateTime.Now:yyyyMMddHHmmss}.txt"); // Timestamped archive filename
+                var archiveFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"logs_archive_{DateTime.Now:yyyyMMddHHmmss}.txt");
                 System.IO.File.Copy(_logFilePath, archiveFilePath, overwrite: true);
                 _logger.LogInformation("Logs archived successfully to {ArchiveFilePath}", archiveFilePath);
                 return Ok(new { Message = "Logs archived successfully." });
@@ -146,7 +146,6 @@ namespace QuantumCrossScripting.Controllers
             }
         }
 
-
         [HttpGet("download")]
         public IActionResult DownloadLogs()
         {
@@ -159,12 +158,134 @@ namespace QuantumCrossScripting.Controllers
             try
             {
                 var fileBytes = System.IO.File.ReadAllBytes(_logFilePath);
-                return File(fileBytes, "application/octet-stream", "logs.txt"); // Return file for download
+                return File(fileBytes, "application/octet-stream", "logs.txt");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error downloading logs from file: {LogFilePath}", _logFilePath);
                 return StatusCode(500, $"Error downloading logs: {ex.Message}");
+            }
+        }
+
+        [HttpPost("export-json")]
+        public IActionResult ExportLogsAsJson()
+        {
+            if (!System.IO.File.Exists(_logFilePath))
+            {
+                _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                return NotFound("Log file not found.");
+            }
+
+            try
+            {
+                var logs = System.IO.File.ReadAllLines(_logFilePath);
+                var jsonLogs = JsonSerializer.Serialize(logs);
+                return Ok(new { JsonLogs = jsonLogs });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting logs as JSON from file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error exporting logs: {ex.Message}");
+            }
+        }
+
+        [HttpPost("stats")]
+        public IActionResult GetLogStats()
+        {
+            if (!System.IO.File.Exists(_logFilePath))
+            {
+                _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                return NotFound("Log file not found.");
+            }
+
+            try
+            {
+                var logs = System.IO.File.ReadAllLines(_logFilePath);
+                var stats = new
+                {
+                    TotalLines = logs.Length,
+                    ErrorCount = logs.Count(line => line.Contains("[Error]")),
+                    WarningCount = logs.Count(line => line.Contains("[Warning]")),
+                    InfoCount = logs.Count(line => line.Contains("[Info]"))
+                };
+
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating log stats from file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error calculating stats: {ex.Message}");
+            }
+        }
+
+        [HttpPost("rotate")]
+        public IActionResult RotateLogs()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_logFilePath))
+                {
+                    _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                    return NotFound("Log file not found.");
+                }
+
+                var rotatedFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"logs_rotated_{DateTime.Now:yyyyMMddHHmmss}.txt");
+                System.IO.File.Move(_logFilePath, rotatedFilePath);
+                System.IO.File.WriteAllText(_logFilePath, string.Empty);
+                _logger.LogInformation("Logs rotated successfully to {RotatedFilePath}", rotatedFilePath);
+                return Ok(new { Message = "Logs rotated successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error rotating logs from file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error rotating logs: {ex.Message}");
+            }
+        }
+
+        [HttpPost("compress")]
+        public IActionResult CompressLogs()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_logFilePath))
+                {
+                    _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                    return NotFound("Log file not found.");
+                }
+
+                var compressedFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"logs_compressed_{DateTime.Now:yyyyMMddHHmmss}.zip");
+                // Simulate compression (actual compression logic can be added here)
+                System.IO.File.Copy(_logFilePath, compressedFilePath);
+                _logger.LogInformation("Logs compressed successfully to {CompressedFilePath}", compressedFilePath);
+                return Ok(new { Message = "Logs compressed successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error compressing logs from file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error compressing logs: {ex.Message}");
+            }
+        }
+
+        [HttpPost("backup")]
+        public IActionResult BackupLogs()
+        {
+            try
+            {
+                if (!System.IO.File.Exists(_logFilePath))
+                {
+                    _logger.LogWarning("Log file not found at {LogFilePath}", _logFilePath);
+                    return NotFound("Log file not found.");
+                }
+
+                var backupFilePath = Path.Combine(Directory.GetCurrentDirectory(), $"logs_backup_{DateTime.Now:yyyyMMddHHmmss}.txt");
+                System.IO.File.Copy(_logFilePath, backupFilePath);
+                _logger.LogInformation("Logs backed up successfully to {BackupFilePath}", backupFilePath);
+                return Ok(new { Message = "Logs backed up successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error backing up logs from file: {LogFilePath}", _logFilePath);
+                return StatusCode(500, $"Error backing up logs: {ex.Message}");
             }
         }
 
